@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AIProxy - OpenAI API 代理</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- 左侧导航 -->
+    <aside id="sidebar">
+      <div class="logo">AIProxy</div>
+      <div class="nav-group-label">配置菜单</div>
+      <nav id="nav">
+        <button class="nav-item active" data-page="dashboard" title="仪表盘">
+          <span class="nav-icon">🏠</span>仪表盘
+        </button>
+        <button class="nav-item" data-page="channels" title="渠道管理">
+          <span class="nav-icon">🖥️</span>渠道管理
+        </button>
+        <button class="nav-item" data-page="aliases" title="模型别名">
+          <span class="nav-icon">🔀</span>模型别名
+        </button>
+        <button class="nav-item" data-page="models" title="模型管理">
+          <span class="nav-icon">📋</span>模型管理
+        </button>
+        <button class="nav-item" data-page="stats" title="用量统计">
+          <span class="nav-icon">📊</span>用量统计
+        </button>
+        <button class="nav-item" data-page="logs" title="请求日志">
+          <span class="nav-icon">📄</span>请求日志
+        </button>
+        <button class="nav-item" data-page="settings" title="设置">
+          <span class="nav-icon">⚙️</span>设置
+        </button>
+      </nav>
+    </aside>
+
+    <!-- 右侧内容 -->
+    <main id="content">
+      <!-- ========== 仪表盘 ========== -->
+      <section id="page-dashboard" class="page">
+        <div class="page-header">
+          <h1>仪表盘</h1>
+          <div class="page-header-actions">
+            <select id="dash-refresh-interval" title="自动刷新间隔">
+              <option value="0">关闭自动刷新</option>
+              <option value="1">1 秒</option>
+              <option value="3" selected>3 秒</option>
+              <option value="5">5 秒</option>
+              <option value="10">10 秒</option>
+              <option value="30">30 秒</option>
+            </select>
+            <span id="dash-refresh-countdown" class="refresh-countdown"></span>
+            <button id="dashboard-refresh" class="btn">刷新</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">服务状态</div>
+              <div class="card-subtitle" id="dash-listen-port">监听端口 17880</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="service-row">
+              <span id="dash-status" class="status-dot loading">● 加载中...</span>
+              <span class="spacer"></span>
+              <button id="dash-copy-addr" class="btn">复制地址</button>
+            </div>
+            <hr class="divider" />
+            <div class="service-row">
+              <span class="label">API 地址</span>
+              <code id="dash-addr" class="mono"></code>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-4">
+          <div class="card stat-card">
+            <div class="card-title">今日调用次数</div>
+            <div class="stat-value" id="dash-count">--</div>
+          </div>
+          <div class="card stat-card">
+            <div class="card-title">今日输入 Token</div>
+            <div class="stat-value" id="dash-prompt">--</div>
+          </div>
+          <div class="card stat-card">
+            <div class="card-title">今日输出 Token</div>
+            <div class="stat-value" id="dash-completion">--</div>
+          </div>
+          <div class="card stat-card">
+            <div class="card-title">今日总 Token</div>
+            <div class="stat-value" id="dash-total">--</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-title">渠道状态</div></div>
+          <div class="card-body grid-6">
+            <div class="sub-stat"><div class="sub-label">启用渠道</div><div class="sub-value" id="dash-enabled">--</div></div>
+            <div class="sub-stat"><div class="sub-label">在线</div><div class="sub-value" id="dash-online">--</div></div>
+            <div class="sub-stat"><div class="sub-label">冷却</div><div class="sub-value" id="dash-cooling">--</div></div>
+            <div class="sub-stat"><div class="sub-label">离线</div><div class="sub-value" id="dash-offline">--</div></div>
+            <div class="sub-stat"><div class="sub-label">渠道总数</div><div class="sub-value" id="dash-total-ch">--</div></div>
+            <div class="sub-stat"><div class="sub-label">模型总数</div><div class="sub-value" id="dash-total-models">--</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 渠道管理 ========== -->
+      <section id="page-channels" class="page" hidden>
+        <div class="page-header">
+          <h1>渠道管理</h1>
+          <div class="page-header-actions">
+            <select id="ch-refresh-interval" title="自动刷新间隔">
+              <option value="0">关闭自动刷新</option>
+              <option value="3">3 秒</option>
+              <option value="10">10 秒</option>
+              <option value="30" selected>30 秒</option>
+            </select>
+            <span id="ch-refresh-countdown" class="refresh-countdown"></span>
+            <button id="ch-refresh" class="btn">刷新列表</button>
+          </div>
+        </div>
+        <div class="toolbar ch-toolbar-group">
+          <span class="toolbar-label">管理</span>
+          <button id="ch-add" class="btn btn-primary">＋ 新增渠道</button>
+          <button id="ch-edit" class="btn">✎ 编辑渠道</button>
+          <button id="ch-delete" class="btn btn-danger-outline">🗑 删除渠道</button>
+          <button id="ch-toggle" class="btn">⏻ 启用/停用</button>
+          <span class="toolbar-sep"></span>
+          <span class="toolbar-label">维护</span>
+          <button id="ch-test" class="btn">✓ 测试选中</button>
+          <button id="ch-refresh-models" class="btn">⟳ 刷新模型</button>
+        </div>
+        <div class="toolbar ch-filter-bar">
+          <select id="ch-status-filter" title="按状态筛选">
+            <option value="">全部状态</option>
+            <option value="online">🟢 在线</option>
+            <option value="cooling">🟠 冷却</option>
+            <option value="offline">🔴 离线</option>
+            <option value="disabled">⚪ 已停用</option>
+          </select>
+          <input id="ch-search" type="text" placeholder="搜索名称 / Base URL..." />
+          <span class="muted small" id="ch-count"></span>
+        </div>
+        <div class="table-wrap">
+          <table id="channels-table" class="data-table">
+            <thead>
+              <tr>
+                <th>名称</th><th>厂商类型</th><th>优先级</th><th>状态</th>
+                <th>模型数</th><th>最近成功</th><th>最近错误</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ========== 模型别名 ========== -->
+      <section id="page-aliases" class="page" hidden>
+        <div class="page-header">
+          <h1>模型别名</h1>
+          <div class="page-header-actions">
+            <button id="aliases-refresh" class="btn">刷新</button>
+          </div>
+        </div>
+        <div class="card alias-tip-card">
+          <span class="muted small">模型别名可将一个别名（如 <code>all</code>）映射到多个真实模型，代理按权重加权轮询将请求分发到目标模型，实现"一个别名代理多个模型"。</span>
+        </div>
+        <div class="toolbar">
+          <button id="al-add" class="btn btn-primary">＋ 新增别名</button>
+          <button id="al-edit" class="btn">✎ 编辑别名</button>
+          <button id="al-toggle" class="btn">⏻ 启用/停用</button>
+          <button id="al-delete" class="btn btn-danger-outline">🗑 删除别名</button>
+        </div>
+        <div class="table-wrap">
+          <table id="aliases-table" class="data-table">
+            <thead>
+              <tr>
+                <th>别名</th><th>目标模型（权重）</th><th>状态</th><th>更新时间</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ========== 模型管理 ========== -->
+      <section id="page-models" class="page" hidden>
+        <div class="page-header">
+          <h1>模型管理</h1>
+          <div class="page-header-actions">
+            <button id="models-add" class="btn btn-primary">＋ 添加自定义模型</button>
+            <button id="models-refresh" class="btn">刷新</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="models-table" class="data-table">
+            <thead>
+              <tr>
+                <th>模型 ID</th><th>来源</th><th>渠道数</th><th>输入 Token</th><th>输出 Token</th><th>总 Token</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ========== 用量统计 ========== -->
+      <section id="page-stats" class="page" hidden>
+        <div class="page-header">
+          <h1>用量统计</h1>
+          <div class="page-header-actions">
+            <select id="stats-refresh-interval" title="自动刷新间隔">
+              <option value="0">关闭自动刷新</option>
+              <option value="1">1 秒</option>
+              <option value="3" selected>3 秒</option>
+              <option value="5">5 秒</option>
+              <option value="10">10 秒</option>
+              <option value="30">30 秒</option>
+            </select>
+            <span id="stats-refresh-countdown" class="refresh-countdown"></span>
+            <button id="stats-refresh" class="btn">刷新</button>
+          </div>
+        </div>
+        <div class="grid-4 today-cards">
+          <div class="card stat-card">
+            <div class="card-title">调用次数</div>
+            <div class="stat-value" id="stats-today-count">--</div>
+          </div>
+          <div class="card stat-card">
+            <div class="card-title">输入 Token</div>
+            <div class="stat-value" id="stats-today-prompt">--</div>
+          </div>
+          <div class="card stat-card">
+            <div class="card-title">输出 Token</div>
+            <div class="stat-value" id="stats-today-completion">--</div>
+          </div>
+          <div class="card stat-card">
+            <div class="card-title">总 Token</div>
+            <div class="stat-value" id="stats-today-total">--</div>
+          </div>
+        </div>
+        <hr class="divider" />
+        <div class="toolbar stats-filter">
+          <span id="stats-range-label" class="muted"></span>
+          <select id="stats-range">
+            <option value="today">今天</option>
+            <option value="7d" selected>最近 7 天</option>
+            <option value="30d">最近 30 天</option>
+            <option value="week">本周</option>
+            <option value="month">本月</option>
+            <option value="custom">自定义</option>
+          </select>
+          <span class="stats-custom-range" id="stats-custom-range" hidden>
+            <span class="muted">从</span>
+            <input type="date" id="stats-start-date" />
+            <span class="muted">至</span>
+            <input type="date" id="stats-end-date" />
+          </span>
+          <select id="stats-channel"><option value="0">全部渠道</option></select>
+          <select id="stats-model"><option value="">全部模型</option></select>
+        </div>
+        <div class="tabs">
+          <button class="tab active" data-tab="daily">按日统计</button>
+          <button class="tab" data-tab="model">按模型统计</button>
+          <button class="tab" data-tab="channel">按渠道统计</button>
+        </div>
+        <div class="table-wrap">
+          <table id="stats-table" class="data-table">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ========== 请求日志 ========== -->
+      <section id="page-logs" class="page" hidden>
+        <div class="page-header">
+          <h1>请求日志</h1>
+          <div class="page-header-actions">
+            <select id="logs-refresh-interval" title="自动刷新间隔">
+              <option value="0">关闭自动刷新</option>
+              <option value="1">1 秒</option>
+              <option value="3" selected>3 秒</option>
+              <option value="5">5 秒</option>
+              <option value="10">10 秒</option>
+              <option value="30">30 秒</option>
+            </select>
+            <span id="logs-refresh-countdown" class="refresh-countdown"></span>
+            <button id="logs-refresh" class="btn">刷新</button>
+          </div>
+        </div>
+        <div class="toolbar">
+          <select id="logs-channel"><option value="0">全部渠道</option></select>
+          <select id="logs-model"><option value="">全部模型</option></select>
+        </div>
+        <div class="table-wrap">
+          <table id="logs-table" class="data-table">
+            <thead>
+              <tr>
+                <th>时间</th><th>渠道</th><th>模型</th><th>状态码</th>
+                <th>耗时(ms)</th><th>输入/输出 Token</th><th>错误</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ========== 设置 ========== -->
+      <section id="page-settings" class="page" hidden>
+        <div class="page-header">
+          <h1>设置</h1>
+        </div>
+        <div class="settings-wrap">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">服务配置</div>
+                <div class="card-subtitle">代理服务监听地址、端口与访问鉴权。</div>
+              </div>
+              <div class="card-actions">
+                <span id="set-dirty-service" class="dirty-dot" title="有未保存的修改" hidden></span>
+                <button id="set-save-service" class="btn btn-primary">保存</button>
+              </div>
+            </div>
+            <div class="card-body form">
+              <div class="service-row">
+                <span id="set-service-status" class="status-dot loading">● 加载中...</span>
+                <span class="spacer"></span>
+                <button id="set-toggle-service" class="btn btn-primary">启动服务</button>
+              </div>
+              <div class="form-row">
+                <label>监听地址</label>
+                <input id="set-listen-addr" type="text" />
+              </div>
+              <div class="form-row">
+                <label>监听端口</label>
+                <input id="set-listen-port" type="number" />
+              </div>
+              <div class="form-row">
+                <label>访问令牌</label>
+                <div class="inline-group">
+                  <input id="set-token" type="password" placeholder="sk-..." />
+                  <button id="set-token-copy" class="btn">复制</button>
+                  <button id="set-token-gen" class="btn">随机生成</button>
+                </div>
+              </div>
+              <div class="form-row">
+                <label></label>
+                <label class="checkbox"><input id="set-auth" type="checkbox" /> 启用代理鉴权（Bearer Token）</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">模型同步</div>
+                <div class="card-subtitle">定期从各渠道拉取最新模型列表，保存后立即生效。</div>
+              </div>
+              <div class="card-actions">
+                <span id="set-dirty-sync" class="dirty-dot" title="有未保存的修改" hidden></span>
+                <button id="set-save-sync" class="btn btn-primary">保存</button>
+              </div>
+            </div>
+            <div class="card-body form">
+              <div class="form-row">
+                <label>模型刷新间隔（分钟）</label>
+                <input id="set-sync-interval" type="number" />
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">代理容错</div>
+                <div class="card-subtitle">请求超时与熔断保护，保存后立即生效。</div>
+              </div>
+              <div class="card-actions">
+                <span id="set-dirty-breaker" class="dirty-dot" title="有未保存的修改" hidden></span>
+                <button id="set-save-breaker" class="btn btn-primary">保存</button>
+              </div>
+            </div>
+            <div class="card-body form">
+              <div class="form-row">
+                <label>请求超时（秒）</label>
+                <input id="set-timeout" type="number" />
+              </div>
+              <div class="form-row">
+                <label>熔断阈值（连续失败次数）</label>
+                <input id="set-breaker-threshold" type="number" />
+              </div>
+              <div class="form-row">
+                <label>熔断冷却（秒）</label>
+                <input id="set-breaker-cooldown" type="number" />
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">日志与调试</div>
+                <div class="card-subtitle">请求日志保留策略与调试输出，保存后立即生效。</div>
+              </div>
+              <div class="card-actions">
+                <span id="set-dirty-log" class="dirty-dot" title="有未保存的修改" hidden></span>
+                <button id="set-save-log" class="btn btn-primary">保存</button>
+              </div>
+            </div>
+            <div class="card-body form">
+              <div class="form-row">
+                <label>日志保留天数</label>
+                <input id="set-log-retention" type="number" />
+              </div>
+              <div class="form-row">
+                <label></label>
+                <label class="checkbox"><input id="set-debug" type="checkbox" /> 调试日志（Debug）</label>
+              </div>
+              <div class="form-row">
+                <label></label>
+                <button id="set-clear-logs" class="btn">清除日志</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">显示设置</div>
+                <div class="card-subtitle">Token 数值显示方式，保存后立即生效。</div>
+              </div>
+              <div class="card-actions">
+                <span id="set-dirty-display" class="dirty-dot" title="有未保存的修改" hidden></span>
+                <button id="set-save-display" class="btn btn-primary">保存</button>
+              </div>
+            </div>
+            <div class="card-body form">
+              <div class="form-row">
+                <label>Token 显示</label>
+                <select id="set-token-display">
+                  <option value="auto">自动（≥100 万显示为 M）</option>
+                  <option value="raw">原始数值（千分位）</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">开机自启动</div>
+              <div class="card-subtitle">登录 Windows 后自动启动 AIProxy，代理服务随系统自动运行。切换立即生效。</div>
+            </div>
+            <div class="card-body form">
+              <div class="form-row">
+                <label></label>
+                <label class="checkbox"><input id="set-autostart" type="checkbox" disabled /> 开机时自动启动 AIProxy</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">启动行为</div>
+              <div class="card-subtitle">开启后，启动 AIProxy 时主窗口隐藏到系统托盘（任务栏不显示），代理服务在后台运行，点击托盘图标即可打开主界面。切换立即生效。</div>
+            </div>
+            <div class="card-body form">
+              <div class="form-row">
+                <label></label>
+                <label class="checkbox"><input id="set-start-minimized" type="checkbox" /> 启动时最小化到系统托盘</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <!-- 通用对话框 -->
+  <div id="modal-overlay" hidden>
+    <div id="modal" class="modal">
+      <div class="modal-header">
+        <span id="modal-title"></span>
+        <button id="modal-close" class="modal-close">×</button>
+      </div>
+      <div id="modal-body" class="modal-body"></div>
+      <div class="modal-footer">
+        <button id="modal-cancel" class="btn">取消</button>
+        <button id="modal-ok" class="btn btn-primary">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 别名编辑对话框（单独表单） -->
+  <div id="alias-modal" class="modal-shell" hidden>
+    <div class="modal alias-modal-dialog">
+      <div class="modal-header">
+        <span>模型别名配置</span>
+        <button class="modal-close" data-close="alias-modal">×</button>
+      </div>
+      <div class="modal-body alias-modal-body">
+        <!-- 别名名称 -->
+        <div class="alias-form-row">
+          <label class="alias-form-label">别名</label>
+          <input id="al-name" type="text" class="alias-name-input" placeholder="如 all / pro" />
+        </div>
+        <!-- 目标模型区域 -->
+        <div class="alias-targets-section">
+          <div class="alias-targets-header">
+            <span class="alias-targets-title">目标模型</span>
+            <button type="button" id="al-add-target" class="btn al-add-target-btn">＋ 添加目标模型</button>
+          </div>
+          <div class="alias-target-table">
+            <div class="alias-target-head">
+              <span class="col-model">模型名称</span>
+              <span class="col-weight">权重</span>
+              <span class="col-timeout">超时(s)</span>
+              <span class="col-action">操作</span>
+            </div>
+            <div id="al-targets-list" class="alias-target-body"></div>
+          </div>
+          <span class="muted small al-targets-hint">支持从系统已有模型中搜索选择，也可手动输入自定义模型名；权重默认 1，超时 0 表示不限。</span>
+        </div>
+        <!-- 启用开关 -->
+        <div class="alias-form-row">
+          <label class="alias-form-label"></label>
+          <label class="checkbox"><input id="al-enabled" type="checkbox" checked /> 启用</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" data-close="alias-modal">取消</button>
+        <button id="al-save" class="btn btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 渠道编辑对话框（单独表单） -->
+  <div id="channel-modal" class="modal-shell" hidden>
+    <div class="modal">
+      <div class="modal-header">
+        <span>渠道配置</span>
+        <button class="modal-close" data-close="channel-modal">×</button>
+      </div>
+      <div class="modal-body form">
+        <div id="ch-readonly-info" class="ch-readonly-info" hidden>
+          <div class="form-row">
+            <label>当前状态</label>
+            <span id="ch-info-status"></span>
+          </div>
+          <div class="form-row">
+            <label>最近成功</label>
+            <span id="ch-info-success" class="muted"></span>
+          </div>
+          <div class="form-row">
+            <label>最近错误</label>
+            <span id="ch-info-error" class="muted"></span>
+          </div>
+          <hr class="divider" />
+        </div>
+        <div class="form-row">
+          <label>名称</label>
+          <input id="ch-name" type="text" />
+        </div>
+        <div class="form-row">
+          <label>厂商类型</label>
+          <select id="ch-type"></select>
+        </div>
+        <div class="form-row">
+          <label>Base URL</label>
+          <input id="ch-baseurl" type="text" />
+        </div>
+        <div class="form-row">
+          <label>API Keys（每行一个）</label>
+          <textarea id="ch-keys" rows="4"></textarea>
+        </div>
+        <div class="form-row">
+          <label>优先级（越小越优先）</label>
+          <input id="ch-priority" type="number" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" data-close="channel-modal">取消</button>
+        <button id="ch-save" class="btn btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模型编辑对话框 -->
+  <div id="model-modal" class="modal-shell" hidden>
+    <div class="modal">
+      <div class="modal-header">
+        <span id="model-modal-title">模型配置</span>
+        <button class="modal-close" data-close="model-modal">×</button>
+      </div>
+      <div class="modal-body form">
+        <div class="form-row">
+          <label>模型名称</label>
+          <input id="md-name" type="text" placeholder="如 gpt-4o / my-model" />
+        </div>
+        <div class="form-row" id="md-desc-row">
+          <label>描述</label>
+          <input id="md-desc" type="text" placeholder="可选描述" />
+        </div>
+        <div class="form-row">
+          <label>渠道绑定</label>
+          <div class="md-channels-wrap">
+            <div id="md-channels-list" class="md-channels-list"></div>
+            <span class="muted small">勾选要绑定的渠道；取消勾选同步渠道会排除（下次同步跳过），取消勾选自定义渠道将直接移除。</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" data-close="model-modal">取消</button>
+        <button id="md-save" class="btn btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 日志详情对话框 -->
+  <div id="logdetail-modal" class="modal-shell" hidden>
+    <div class="modal">
+      <div class="modal-header">
+        <span>日志详情</span>
+        <button class="modal-close" data-close="logdetail-modal">×</button>
+      </div>
+      <div id="logdetail-body" class="modal-body detail-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" data-close="logdetail-modal">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 提示框 -->
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

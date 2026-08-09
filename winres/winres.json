@@ -1,0 +1,34 @@
+{
+  "RT_GROUP_ICON": {
+    "#3": {
+      "0000": "../assets/aiproxy.ico"
+    }
+  },
+  "RT_MANIFEST": {
+    "APP": {
+      "0000": "aiproxy.manifest"
+    }
+  },
+  "RT_VERSION": {
+    "APP": {
+      "0000": {
+        "fixed": {
+          "file_version": "1.0.0.0",
+          "product_version": "1.0.0.0"
+        },
+        "info": {
+          "0409": {
+            "CompanyName": "AIProxy",
+            "FileDescription": "AIProxy - OpenAI API 代理",
+            "FileVersion": "1.0.0",
+            "InternalName": "aiproxy",
+            "LegalCopyright": "Copyright (c) AIProxy",
+            "OriginalFilename": "aiproxy.exe",
+            "ProductName": "AIProxy",
+            "ProductVersion": "1.0.0"
+          }
+        }
+      }
+    }
+  }
+}
