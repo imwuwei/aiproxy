@@ -1,0 +1,67 @@
+name: Build and Upload Release Assets
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.1'
+          cache: true
+
+      - name: Install mingw-w64 (Windows 交叉编译)
+        run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64
+
+      - name: Install NSIS (Windows 安装包)
+        run: sudo apt-get update && sudo apt-get install -y nsis
+
+      - name: Install go-winres (Windows 资源文件)
+        run: go install github.com/tc-hib/go-winres@latest
+
+      - name: Extract version from release tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Generate Windows resources (icon / version / manifest)
+        run: |
+          "$HOME/go/bin/go-winres" make --arch amd64 --file-version "$VERSION" --product-version "$VERSION"
+
+      - name: Build Windows desktop app (Wails/WebView2)
+        run: |
+          CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc \
+            go build -tags "production windows" -ldflags "-H windowsgui -s -w -extldflags '-static'" \
+            -o build/aiproxy-windows-amd64.exe .
+          rm -f rsrc_windows_amd64.syso
+
+      - name: Build Windows CLI (no GUI)
+        run: |
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 \
+            go build -tags "cli" -ldflags "-s -w" \
+            -o build/aiproxy-cli-windows-amd64.exe .
+
+      - name: Build Windows NSIS installer
+        run: |
+          FILEVERSION="$(printf '%s' "$VERSION" | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+).*/\1.0/; t; s/^.*/1.0.0.0/')"
+          (cd packaging/nsis && makensis "-DVERSION=$VERSION" "-DFILEVERSION=$FILEVERSION" installer.nsi)
+          mv -f "packaging/nsis/aiproxy-Setup-$VERSION.exe" "build/aiproxy-Setup-$VERSION.exe"
+
+      - name: Upload artifacts to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/aiproxy-windows-amd64.exe
+            build/aiproxy-cli-windows-amd64.exe
+            build/aiproxy-Setup-${{ env.VERSION }}.exe
