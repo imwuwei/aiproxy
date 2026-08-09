@@ -28,11 +28,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             gcc-mingw-w64-x86-64 \
-            nsis \
-            libwebkit2gtk-4.0-dev \
-            libgtk-3-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev
+            nsis
+
+      - name: Build Linux CLI (no GUI)
+        run: |
+          go build -tags "cli" -ldflags "-s -w" \
+            -o build/aiproxy-cli-linux-amd64 .
 
       - name: Install go-winres (Windows 资源文件)
         run: go install github.com/tc-hib/go-winres@latest
@@ -66,16 +67,6 @@ jobs:
           (cd packaging/nsis && makensis "-DVERSION=$VERSION" "-DFILEVERSION=$FILEVERSION" installer.nsi)
           mv -f "packaging/nsis/aiproxy-Setup-$VERSION.exe" "build/aiproxy-Setup-$VERSION.exe"
 
-      - name: Build Linux desktop app (Wails)
-        run: |
-          go build -tags "production x11" -ldflags "-s -w" \
-            -o build/aiproxy-linux-amd64 .
-
-      - name: Build Linux CLI (no GUI)
-        run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-            go build -tags "cli" -ldflags "-s -w" \
-            -o build/aiproxy-cli-linux-amd64 .
 
       - name: Upload artifacts to GitHub Release
         uses: softprops/action-gh-release@v2
@@ -84,5 +75,4 @@ jobs:
             build/aiproxy-windows-amd64.exe
             build/aiproxy-cli-windows-amd64.exe
             build/aiproxy-Setup-${{ env.VERSION }}.exe
-            build/aiproxy-linux-amd64
             build/aiproxy-cli-linux-amd64
