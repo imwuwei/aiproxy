@@ -5,7 +5,7 @@ package tray
 
 // Options 托盘配置。
 type Options struct {
-	// Icon 托盘图标内容（Windows 需要 .ico 格式字节）。
+	// Icon 托盘图标内容（PNG 字节；Windows 下内部转换为 .ico 后加载，其他平台直接供 systray 使用）。
 	Icon []byte
 	// Title 托盘标题（部分平台展示，如 Linux）。
 	Title string

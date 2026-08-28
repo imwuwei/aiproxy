@@ -478,7 +478,7 @@ func (t *winTray) showMenu() error {
 	return nil
 }
 
-// iconBytesToFilePath 将图标字节缓存为临时文件（LoadImageW 需要文件路径）
+// iconBytesToFilePath 将 ICO 字节缓存为临时文件（LoadImageW 需要文件路径）
 func iconBytesToFilePath(iconBytes []byte) (string, error) {
 	bh := md5.Sum(iconBytes)
 	dataHash := hex.EncodeToString(bh[:])
@@ -512,12 +512,13 @@ func run(opts Options) {
 		}
 	}()
 
+	// opts.Icon 为 PNG 字节（来自 assets/aiproxy.png）；LoadImageW 仅支持 .ico 文件，
+	// 因此先在内存中转换为多尺寸 ICO，再缓存为临时文件加载。
+	// 转换/加载失败均不致命，托盘回退系统默认图标。
 	if len(opts.Icon) > 0 {
-		if p, err := iconBytesToFilePath(opts.Icon); err == nil {
-			if err := wt.setIcon(p); err != nil {
-				// 图标加载失败不致命，托盘仍可用默认图标
-			} else {
-				// 默认应用图标已被覆盖
+		if icoBytes, err := pngToICO(opts.Icon); err == nil {
+			if p, err := iconBytesToFilePath(icoBytes); err == nil {
+				_ = wt.setIcon(p)
 			}
 		}
 	}

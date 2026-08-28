@@ -218,7 +218,7 @@ aiproxy settings gen-token [--save]                            # 生成随机访
 
 应用内置深蓝渐变 + 白色转发箭头 + 橙色点缀的程序图标：
 
-- **GUI 窗口 / 任务栏 / 系统托盘**：Windows 托盘图标通过 `internal/wailsapp/frontend/appicon.ico` 嵌入（systray 仅支持 .ico）
+- **GUI 窗口 / 任务栏 / 系统托盘**：系统托盘图标采用仓库根目录 `assets/aiproxy.png`（构建时由 `main_wails.go` 嵌入；Windows 下运行时转换为 .ico 后加载，其他平台直接供 systray 使用）
 - **Windows 可执行文件图标**：构建时由 go-winres 从 `assets/aiproxy.ico` 嵌入（含多尺寸 16/32/48/128/256）
 - **Linux 桌面图标**：`assets/aiproxy.png` 可作为 `.desktop` 入口的图标使用
 
@@ -226,7 +226,7 @@ aiproxy settings gen-token [--save]                            # 生成随机访
 
 ```bash
 pip install pillow
-python3 scripts/gen_icon.py   # 重新生成 assets/aiproxy.png、assets/aiproxy.ico 与 frontend/appicon.ico
+python3 scripts/gen_icon.py   # 重新生成 assets/aiproxy.png 与 assets/aiproxy.ico
 ```
 
 ## 使用代理

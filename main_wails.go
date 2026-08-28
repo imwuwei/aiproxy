@@ -3,6 +3,7 @@
 package main
 
 import (
+	"embed"
 	"log"
 	"os"
 
@@ -10,6 +11,14 @@ import (
 	"aiproxy/internal/singleinst"
 	"aiproxy/internal/wailsapp"
 )
+
+// 系统托盘图标：采用仓库根目录 assets/aiproxy.png。
+// 受 go:embed 限制（不能引用包目录之外的文件），在包 main（位于仓库根）中以目录形式嵌入 assets/，
+// 运行时取出 assets/aiproxy.png 的字节传入 wailsapp；Windows 下 internal/tray 会将其转换为 .ico 加载，
+// 其他平台直接供 systray 使用。读取失败时不致命，托盘回退默认图标。
+//
+//go:embed assets
+var assetFS embed.FS
 
 // main Wails 版桌面 GUI 入口（默认构建，无标签）。
 // CLI 版本编译方式：go build -tags cli
@@ -43,7 +52,12 @@ func main() {
 	comps.StartLogCleaner()
 
 	// 启动 Wails GUI（自动启动代理服务与模型同步）
-	wailsapp.Run(comps, inst)
+	// 读取系统托盘图标字节：取 assets/aiproxy.png；失败则不传图标（托盘回退默认图标，非致命）
+	trayIcon, err := assetFS.ReadFile("assets/aiproxy.png")
+	if err != nil {
+		log.Printf("[main] 读取托盘图标 assets/aiproxy.png 失败: %v", err)
+	}
+	wailsapp.Run(comps, inst, trayIcon)
 
 	// wails.Run 返回后正常退出
 	comps.Close()

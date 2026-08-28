@@ -5,7 +5,6 @@ package wailsapp
 import (
 	"context"
 	"embed"
-	"io/fs"
 	"log"
 
 	"aiproxy/internal/app"
@@ -24,20 +23,10 @@ import (
 //go:embed all:frontend
 var assets embed.FS
 
-// getTrayIcon 读取托盘图标。
-// Windows 托盘通过 LoadImageW(IMAGE_ICON) 加载，仅支持 .ico 格式，
-// 因此这里使用 frontend/appicon.ico；若不存在返回 nil（使用系统默认图标）。
-func getTrayIcon() []byte {
-	b, err := fs.ReadFile(assets, "frontend/appicon.ico")
-	if err != nil {
-		return nil
-	}
-	return b
-}
-
 // Run 启动 Wails GUI。
-// comps 由 main 初始化。
-func Run(comps *app.Components, inst *singleinst.Instance) {
+// comps 由 main 初始化；trayIcon 为系统托盘图标字节（PNG，取自仓库根目录 assets/aiproxy.png，
+// 由 main 包嵌入后传入；Windows 下 internal/tray 会转换为 .ico 加载，其他平台直接用于 systray）。
+func Run(comps *app.Components, inst *singleinst.Instance, trayIcon []byte) {
 	appGUI := NewApp(comps.Config, comps.SettingsStore, comps.ChannelStore, comps.ModelStore, comps.CustomModelStore, comps.UsageStore, comps.AliasStore, comps.ProxySrv, comps.ModelSync)
 	appGUI.SetSingleInstance(inst)
 
@@ -64,7 +53,7 @@ func Run(comps *app.Components, inst *singleinst.Instance) {
 			// Windows 托盘：左键单击显示主界面，右键弹出功能菜单（显示主窗口/退出）。
 			// 其他平台回退至 menu 风格托盘。
 			go tray.Run(tray.Options{
-				Icon:      getTrayIcon(),
+				Icon:      trayIcon,
 				Title:     "AIProxy",
 				Tooltip:   "AIProxy - OpenAI API 代理",
 				LeftClick: func() { runtime.WindowShow(ctx) },
