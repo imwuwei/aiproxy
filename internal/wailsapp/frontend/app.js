@@ -1844,11 +1844,15 @@ function tsRefresh() {
   const utc = byId("ts-utc");
   const sec = byId("ts-sec");
   const ms = byId("ts-ms");
+  const dateEl = byId("ts-date");
+  const timeEl = byId("ts-time");
   if (!raw) {
     local.textContent = "";
     utc.textContent = "";
     sec.textContent = "";
     ms.textContent = "";
+    dateEl.value = "";
+    timeEl.value = "";
     return;
   }
   const num = Number(raw);
@@ -1857,6 +1861,8 @@ function tsRefresh() {
     utc.textContent = "";
     sec.textContent = "";
     ms.textContent = "";
+    dateEl.value = "";
+    timeEl.value = "";
     return;
   }
   const msVal = num < 1e12 ? num * 1000 : num; // 秒/毫秒自动判定
@@ -1866,12 +1872,44 @@ function tsRefresh() {
     utc.textContent = "";
     sec.textContent = "";
     ms.textContent = "";
+    dateEl.value = "";
+    timeEl.value = "";
     return;
   }
   local.textContent = tsFormat(d) + "（本地）";
   utc.textContent = d.toISOString().replace("T", " ").slice(0, 19) + "（UTC）";
   sec.textContent = String(Math.floor(msVal / 1000));
   ms.textContent = String(msVal);
+  // 双向同步：日期/时间选择器回填为对应本地时间（程序赋值不触发 change，无死循环）
+  const p = (n) => String(n).padStart(2, "0");
+  dateEl.value = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  timeEl.value = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+// 从日期/时间选择器取毫秒时间戳（按本地时区），缺日期返回 null，缺时间默认 00:00:00
+function tsFromPicker() {
+  const dateVal = byId("ts-date").value;
+  if (!dateVal) {
+    return null;
+  }
+  const timeVal = byId("ts-time").value || "00:00:00";
+  const ms = new Date(`${dateVal}T${timeVal}`).getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
+// 将选择器选定的日期时间写入时间戳输入并刷新；silent 用于 change 自动转换，避免清空日期时弹错误提示
+function tsApplyPicker(silent) {
+  const t = tsFromPicker();
+  if (t === null) {
+    byId("ts-input").value = "";
+    tsRefresh();
+    if (!silent) {
+      toast("请选择日期时间", true);
+    }
+    return;
+  }
+  byId("ts-input").value = String(t);
+  tsRefresh();
 }
 
 byId("ts-input").addEventListener("input", tsRefresh);
@@ -1879,20 +1917,9 @@ byId("ts-now").addEventListener("click", () => {
   byId("ts-input").value = String(Date.now());
   tsRefresh();
 });
-byId("ts-set").addEventListener("click", () => {
-  const v = byId("ts-datetime").value.trim();
-  if (!v) {
-    toast("请输入日期时间", true);
-    return;
-  }
-  const t = new Date(v.replace(" ", "T")).getTime();
-  if (isNaN(t)) {
-    toast("无法解析的日期时间", true);
-    return;
-  }
-  byId("ts-input").value = String(t);
-  tsRefresh();
-});
+byId("ts-set").addEventListener("click", () => tsApplyPicker(false));
+byId("ts-date").addEventListener("change", () => tsApplyPicker(true));
+byId("ts-time").addEventListener("change", () => tsApplyPicker(true));
 byId("ts-copy").addEventListener("click", () => toolCopy(byId("ts-local").textContent, "已复制本地时间"));
 
 /* ---- 网址转换 ---- */

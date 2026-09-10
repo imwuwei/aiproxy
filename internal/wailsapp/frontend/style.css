@@ -630,6 +630,8 @@ textarea:disabled {
 .form-row input[type="text"],
 .form-row input[type="password"],
 .form-row input[type="number"],
+.form-row input[type="date"],
+.form-row input[type="time"],
 .form-row select,
 .form-row textarea {
   padding: 6px 10px;
@@ -660,6 +662,12 @@ textarea:disabled {
 
 .inline-group input {
   width: 200px !important;
+}
+
+/* 时间戳工具的日期/时间选择器：两框并排 + 按钮，收窄宽度保持行内整齐 */
+.tool-panel .inline-group input[type="date"],
+.tool-panel .inline-group input[type="time"] {
+  width: 150px !important;
 }
 
 .checkbox {
