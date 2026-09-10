@@ -569,13 +569,15 @@ body {
 }
 
 /* ---------- 页签 ---------- */
-.tabs {
+.tabs,
+.tool-tabs {
   display: flex;
   gap: 0;
   border-bottom: 2px solid var(--border);
 }
 
-.tab {
+.tab,
+.tool-tab {
   padding: 8px 18px;
   border: none;
   background: transparent;
@@ -586,11 +588,13 @@ body {
   margin-bottom: -2px;
 }
 
-.tab:hover {
+.tab:hover,
+.tool-tab:hover {
   color: var(--text);
 }
 
-.tab.active {
+.tab.active,
+.tool-tab.active {
   color: var(--primary);
   border-bottom-color: var(--primary);
   font-weight: 600;
@@ -678,6 +682,32 @@ textarea:disabled {
 
 .small {
   font-size: 12px;
+}
+
+/* ---------- 小工具页 ---------- */
+
+/* 工具卡片内文本框加宽，便于展示转换结果 */
+.tool-panel textarea {
+  width: 480px;
+}
+
+/* 字符集/标志复选框组（可换行） */
+.tool-charset {
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+/* 结果输出框：只读等宽、自动换行 */
+.tool-result-text {
+  max-width: 480px;
+  min-height: 24px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: "Consolas", "Courier New", monospace;
+  background: #f0f0f0;
+  padding: 4px 10px;
+  border-radius: 3px;
+  line-height: 1.5;
 }
 
 /* ---------- 对话框 ---------- */

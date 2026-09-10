@@ -31,6 +31,9 @@
         <button class="nav-item" data-page="logs" title="请求日志">
           <span class="nav-icon">📄</span>请求日志
         </button>
+        <button class="nav-item" data-page="tools" title="小工具">
+          <span class="nav-icon">🧰</span>小工具
+        </button>
         <button class="nav-item" data-page="settings" title="设置">
           <span class="nav-icon">⚙️</span>设置
         </button>
@@ -312,6 +315,208 @@
         </div>
       </section>
 
+      <!-- ========== 小工具 ========== -->
+      <section id="page-tools" class="page" hidden>
+        <div class="page-header">
+          <h1>小工具</h1>
+          <div class="page-header-actions">
+            <span class="muted small">纯前端计算，数据不离开本机</span>
+          </div>
+        </div>
+
+        <div class="tool-tabs">
+          <button class="tool-tab active" data-tool="timestamp">时间戳</button>
+          <button class="tool-tab" data-tool="url">网址</button>
+          <button class="tool-tab" data-tool="password">密码</button>
+          <button class="tool-tab" data-tool="base64">Base64</button>
+          <button class="tool-tab" data-tool="regex">正则</button>
+        </div>
+
+        <!-- 时间戳转换 -->
+        <div class="card tool-panel" data-tool-panel="timestamp">
+          <div class="card-header"><div class="card-title">时间戳转换</div></div>
+          <div class="card-body form">
+            <div class="form-row">
+              <label>时间戳</label>
+              <div class="inline-group">
+                <input id="ts-input" type="text" placeholder="Unix 秒或毫秒，如 1768022400" />
+                <button id="ts-now" class="btn">当前时间戳</button>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>日期时间</label>
+              <div class="inline-group">
+                <input id="ts-datetime" type="text" placeholder="如 2025-09-01 12:00:00" />
+                <button id="ts-set" class="btn">转为时间戳</button>
+              </div>
+            </div>
+            <hr class="divider" />
+            <div class="form-row">
+              <label>本地时间</label>
+              <code id="ts-local" class="mono tool-result-text"></code>
+            </div>
+            <div class="form-row">
+              <label>UTC 时间</label>
+              <code id="ts-utc" class="mono tool-result-text"></code>
+            </div>
+            <div class="form-row">
+              <label>秒级时间戳</label>
+              <code id="ts-sec" class="mono tool-result-text"></code>
+            </div>
+            <div class="form-row">
+              <label>毫秒时间戳</label>
+              <code id="ts-ms" class="mono tool-result-text"></code>
+            </div>
+            <div class="form-row">
+              <label></label>
+              <button id="ts-copy" class="btn">复制本地时间</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 网址转换 -->
+        <div class="card tool-panel" data-tool-panel="url" hidden>
+          <div class="card-header"><div class="card-title">网址转换</div></div>
+          <div class="card-body form">
+            <div class="form-row">
+              <label>操作</label>
+              <div class="inline-group">
+                <select id="url-mode">
+                  <option value="encode">URL 编码</option>
+                  <option value="decode">URL 解码</option>
+                </select>
+                <button id="url-convert" class="btn">转换</button>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>输入</label>
+              <textarea id="url-input" rows="4" placeholder="输入要转换的文本"></textarea>
+            </div>
+            <div class="form-row">
+              <label>结果</label>
+              <div class="inline-group tool-result-group">
+                <textarea id="url-output" rows="4" readonly></textarea>
+                <button id="url-copy" class="btn">复制</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 随机密码生成 -->
+        <div class="card tool-panel" data-tool-panel="password" hidden>
+          <div class="card-header"><div class="card-title">随机密码生成</div></div>
+          <div class="card-body form">
+            <div class="form-row">
+              <label>密码长度</label>
+              <input id="pw-length" type="number" value="16" min="4" max="128" />
+            </div>
+            <div class="form-row">
+              <label>字符集</label>
+              <div class="inline-group tool-charset">
+                <label class="checkbox"><input id="pw-lower" type="checkbox" checked /> 小写字母</label>
+                <label class="checkbox"><input id="pw-upper" type="checkbox" checked /> 大写字母</label>
+                <label class="checkbox"><input id="pw-digit" type="checkbox" checked /> 数字</label>
+                <label class="checkbox"><input id="pw-symbol" type="checkbox" checked /> 符号</label>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>易混淆字符</label>
+              <label class="checkbox"><input id="pw-ambig" type="checkbox" checked /> 排除 0 O 1 l I | 等</label>
+            </div>
+            <div class="form-row">
+              <label>生成</label>
+              <div class="inline-group">
+                <button id="pw-generate" class="btn btn-primary">生成密码</button>
+                <button id="pw-copy" class="btn">复制</button>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>密码</label>
+              <code id="pw-output" class="mono tool-result-text"></code>
+            </div>
+          </div>
+        </div>
+
+        <!-- Base64 编解码 -->
+        <div class="card tool-panel" data-tool-panel="base64" hidden>
+          <div class="card-header"><div class="card-title">Base64 编解码</div></div>
+          <div class="card-body form">
+            <div class="form-row">
+              <label>操作</label>
+              <div class="inline-group">
+                <select id="b64-mode">
+                  <option value="encode">文本 → Base64</option>
+                  <option value="decode">Base64 → 文本</option>
+                </select>
+                <button id="b64-convert" class="btn">转换</button>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>输入</label>
+              <textarea id="b64-input" rows="4" placeholder="输入文本或 Base64 字符串"></textarea>
+            </div>
+            <div class="form-row">
+              <label>结果</label>
+              <div class="inline-group tool-result-group">
+                <textarea id="b64-output" rows="4" readonly></textarea>
+                <button id="b64-copy" class="btn">复制</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 正则匹配 -->
+        <div class="card tool-panel" data-tool-panel="regex" hidden>
+          <div class="card-header"><div class="card-title">正则匹配</div></div>
+          <div class="card-body form">
+            <div class="form-row">
+              <label>正则表达式</label>
+              <input id="rx-pattern" type="text" placeholder="如 \d+ 或 (ab|cd)" />
+            </div>
+            <div class="form-row">
+              <label>标志</label>
+              <div class="inline-group tool-charset">
+                <label class="checkbox"><input id="rx-flag-g" type="checkbox" checked /> g</label>
+                <label class="checkbox"><input id="rx-flag-i" type="checkbox" /> i</label>
+                <label class="checkbox"><input id="rx-flag-m" type="checkbox" /> m</label>
+                <label class="checkbox"><input id="rx-flag-s" type="checkbox" /> s</label>
+                <label class="checkbox"><input id="rx-flag-u" type="checkbox" /> u</label>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>待匹配文本</label>
+              <textarea id="rx-input" rows="5" placeholder="输入要匹配的文本"></textarea>
+            </div>
+            <div class="form-row">
+              <label>替换为</label>
+              <input id="rx-replace" type="text" placeholder="可选，如 $1- 或留空仅匹配" />
+            </div>
+            <div class="form-row">
+              <label>执行</label>
+              <div class="inline-group">
+                <button id="rx-run" class="btn btn-primary">匹配</button>
+                <button id="rx-replace-run" class="btn">替换预览</button>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>匹配数量</label>
+              <code id="rx-count" class="mono tool-result-text"></code>
+            </div>
+            <div class="form-row">
+              <label>匹配结果</label>
+              <div class="inline-group tool-result-group">
+                <textarea id="rx-output" rows="4" readonly></textarea>
+                <button id="rx-copy" class="btn">复制</button>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>替换预览</label>
+              <textarea id="rx-replaced" rows="4" readonly></textarea>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- ========== 设置 ========== -->
       <section id="page-settings" class="page" hidden>
         <div class="page-header">
@@ -334,6 +539,13 @@
                 <span id="set-service-status" class="status-dot loading">● 加载中...</span>
                 <span class="spacer"></span>
                 <button id="set-toggle-service" class="btn btn-primary">启动服务</button>
+              </div>
+              <div class="form-row">
+                <label>API 地址</label>
+                <div class="inline-group">
+                  <code id="set-api-addr" class="mono"></code>
+                  <button id="set-api-addr-copy" class="btn">复制</button>
+                </div>
               </div>
               <div class="form-row">
                 <label>监听地址</label>

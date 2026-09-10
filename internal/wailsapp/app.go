@@ -665,6 +665,7 @@ func (a *App) FormatLogTime(createdAtRaw string, createdAt time.Time) string {
 type SettingsData struct {
 	ListenAddr        string `json:"listen_addr"`
 	ListenPort        int    `json:"listen_port"`
+	BaseURL           string `json:"base_url"`
 	AccessToken       string `json:"access_token"`
 	AuthEnabled       bool   `json:"auth_enabled"`
 	ModelSyncInterval int    `json:"model_sync_interval_minutes"`
@@ -685,6 +686,7 @@ func (a *App) GetSettings() SettingsData {
 	return SettingsData{
 		ListenAddr:        a.config.ListenAddr,
 		ListenPort:        a.config.ListenPort,
+		BaseURL:           a.config.BaseURL(),
 		AccessToken:       a.config.AccessToken,
 		AuthEnabled:       a.config.AuthEnabled,
 		ModelSyncInterval: int(a.config.ModelSyncInterval.Minutes()),

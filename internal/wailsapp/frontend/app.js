@@ -1535,6 +1535,7 @@ async function loadSettings() {
     const s = await callGo(window.go.wailsapp.App.GetSettings);
     byId("set-listen-addr").value = s.listen_addr;
     byId("set-listen-port").value = s.listen_port;
+    byId("set-api-addr").textContent = s.base_url;
     byId("set-token").value = s.access_token;
     byId("set-auth").checked = s.auth_enabled;
     byId("set-sync-interval").value = s.model_sync_interval_minutes;
@@ -1576,6 +1577,11 @@ byId("set-token-copy").addEventListener("click", () => {
   }
   window.go.wailsapp.App.CopyText(v);
   toast("已复制");
+});
+
+byId("set-api-addr-copy").addEventListener("click", () => {
+  window.go.wailsapp.App.CopyText(byId("set-api-addr").textContent);
+  toast("已复制地址");
 });
 
 byId("set-token-gen").addEventListener("click", async () => {
@@ -1766,6 +1772,8 @@ async function refreshSettingsState() {
   try {
     const s = await callGo(window.go.wailsapp.App.GetSettings);
     updateServiceConfigLock(s.proxy_running);
+    // 同步刷新 API 地址展示（只读元素，不覆盖用户正在编辑的表单）
+    byId("set-api-addr").textContent = s.base_url;
   } catch (e) {
     // 忽略刷新失败
   }
@@ -1799,6 +1807,242 @@ const logsAutoRefresh = createAutoRefresh(
   refreshLogs,
   "logs-refresh-countdown"
 );
+
+/* ---------- 小工具页 ---------- */
+
+// 选项卡切换（作用域限定于 #page-tools，避免与统计页全局 .tab 处理器冲突）
+document.querySelectorAll("#page-tools .tool-tab").forEach((t) => {
+  t.addEventListener("click", () => {
+    document.querySelectorAll("#page-tools .tool-tab").forEach((x) => x.classList.remove("active"));
+    t.classList.add("active");
+    document.querySelectorAll("#page-tools .tool-panel").forEach((p) => {
+      p.hidden = p.dataset.toolPanel !== t.dataset.tool;
+    });
+  });
+});
+
+// 复制辅助：走后端绑定 CopyText + toast，与现有页面一致
+function toolCopy(text, tip) {
+  if (!text) {
+    toast("没有可复制的内容");
+    return;
+  }
+  window.go.wailsapp.App.CopyText(text);
+  toast(tip || "已复制");
+}
+
+/* ---- 时间戳转换 ---- */
+
+function tsFormat(d) {
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+function tsRefresh() {
+  const raw = byId("ts-input").value.trim();
+  const local = byId("ts-local");
+  const utc = byId("ts-utc");
+  const sec = byId("ts-sec");
+  const ms = byId("ts-ms");
+  if (!raw) {
+    local.textContent = "";
+    utc.textContent = "";
+    sec.textContent = "";
+    ms.textContent = "";
+    return;
+  }
+  const num = Number(raw);
+  if (!Number.isFinite(num)) {
+    local.textContent = "无效的时间戳";
+    utc.textContent = "";
+    sec.textContent = "";
+    ms.textContent = "";
+    return;
+  }
+  const msVal = num < 1e12 ? num * 1000 : num; // 秒/毫秒自动判定
+  const d = new Date(msVal);
+  if (isNaN(d.getTime())) {
+    local.textContent = "超出有效范围";
+    utc.textContent = "";
+    sec.textContent = "";
+    ms.textContent = "";
+    return;
+  }
+  local.textContent = tsFormat(d) + "（本地）";
+  utc.textContent = d.toISOString().replace("T", " ").slice(0, 19) + "（UTC）";
+  sec.textContent = String(Math.floor(msVal / 1000));
+  ms.textContent = String(msVal);
+}
+
+byId("ts-input").addEventListener("input", tsRefresh);
+byId("ts-now").addEventListener("click", () => {
+  byId("ts-input").value = String(Date.now());
+  tsRefresh();
+});
+byId("ts-set").addEventListener("click", () => {
+  const v = byId("ts-datetime").value.trim();
+  if (!v) {
+    toast("请输入日期时间", true);
+    return;
+  }
+  const t = new Date(v.replace(" ", "T")).getTime();
+  if (isNaN(t)) {
+    toast("无法解析的日期时间", true);
+    return;
+  }
+  byId("ts-input").value = String(t);
+  tsRefresh();
+});
+byId("ts-copy").addEventListener("click", () => toolCopy(byId("ts-local").textContent, "已复制本地时间"));
+
+/* ---- 网址转换 ---- */
+
+byId("url-convert").addEventListener("click", () => {
+  const input = byId("url-input").value;
+  const mode = byId("url-mode").value;
+  try {
+    byId("url-output").value =
+      mode === "encode" ? encodeURIComponent(input) : decodeURIComponent(input);
+  } catch (e) {
+    byId("url-output").value = "";
+    toast("转换失败：" + (e && e.message ? e.message : "非法的 URI 编码"), true);
+  }
+});
+byId("url-copy").addEventListener("click", () => toolCopy(byId("url-output").value, "已复制结果"));
+
+/* ---- 随机密码生成 ---- */
+
+const PW_SETS = {
+  lower: "abcdefghijklmnopqrstuvwxyz",
+  upper: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+  digit: "0123456789",
+  symbol: "!@#$%^&*()-_=+[]{};:,.<>?/~",
+};
+const PW_AMBIG_RE = /[0O1lI|]/g;
+
+function pwRand(max) {
+  const a = new Uint32Array(1);
+  crypto.getRandomValues(a);
+  return a[0] % max;
+}
+
+function pwGenerate() {
+  let length = parseInt(byId("pw-length").value, 10);
+  if (!Number.isFinite(length) || length < 4) length = 16;
+  if (length > 128) length = 128;
+  byId("pw-length").value = String(length);
+
+  const keys = ["pw-lower", "pw-upper", "pw-digit", "pw-symbol"]
+    .filter((id) => byId(id).checked)
+    .map((id) => id.replace("pw-", ""));
+  if (keys.length === 0) {
+    keys.push("lower", "upper", "digit");
+    ["pw-lower", "pw-upper", "pw-digit"].forEach((id) => (byId(id).checked = true));
+    toast("至少需要一种字符集，已回退为「大小写字母 + 数字」");
+  }
+  const excludeAmbiguous = byId("pw-ambig").checked;
+  const pools = keys
+    .map((k) => (excludeAmbiguous ? PW_SETS[k].replace(PW_AMBIG_RE, "") : PW_SETS[k]))
+    .filter((s) => s.length > 0);
+  const all = pools.join("");
+  if (!all) {
+    toast("无可用的字符集", true);
+    return;
+  }
+  // 每种启用字符集至少出现一次，再补足长度并洗牌
+  const chars = pools.map((p) => p[pwRand(p.length)]);
+  while (chars.length < length) chars.push(all[pwRand(all.length)]);
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = pwRand(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  byId("pw-output").textContent = chars.join("");
+}
+byId("pw-generate").addEventListener("click", pwGenerate);
+byId("pw-copy").addEventListener("click", () => toolCopy(byId("pw-output").textContent, "已复制密码"));
+
+/* ---- Base64 编解码 ---- */
+
+byId("b64-convert").addEventListener("click", () => {
+  const mode = byId("b64-mode").value;
+  const input = byId("b64-input").value;
+  try {
+    if (mode === "encode") {
+      const bytes = new TextEncoder().encode(input);
+      let bin = "";
+      bytes.forEach((b) => (bin += String.fromCharCode(b)));
+      byId("b64-output").value = btoa(bin);
+    } else {
+      const s = input.trim();
+      if (!s || !/^[A-Za-z0-9+/]*={0,2}$/.test(s) || s.length % 4 !== 0) {
+        throw new Error("不是有效的 Base64 字符串");
+      }
+      const bin = atob(s);
+      const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+      byId("b64-output").value = new TextDecoder().decode(bytes);
+    }
+  } catch (e) {
+    byId("b64-output").value = "";
+    toast("转换失败：" + (e && e.message ? e.message : "非法输入"), true);
+  }
+});
+byId("b64-copy").addEventListener("click", () => toolCopy(byId("b64-output").value, "已复制结果"));
+
+/* ---- 正则匹配 ---- */
+
+function rxFlags() {
+  let f = "";
+  ["rx-flag-g", "rx-flag-i", "rx-flag-m", "rx-flag-s", "rx-flag-u"].forEach((id) => {
+    if (byId(id).checked) f += id.slice(-1);
+  });
+  return f;
+}
+
+function rxRun() {
+  const pattern = byId("rx-pattern").value;
+  const text = byId("rx-input").value;
+  const flags = rxFlags();
+  if (!pattern) {
+    toast("请输入正则表达式", true);
+    return;
+  }
+  let re;
+  try {
+    re = new RegExp(pattern, flags);
+  } catch (e) {
+    byId("rx-output").value = "";
+    byId("rx-count").textContent = "";
+    byId("rx-replaced").value = "";
+    toast("正则无效：" + e.message, true);
+    return;
+  }
+  // 遍历全部匹配：无 g 标志时临时加 g 以便 exec 迭代
+  const iterRe = flags.includes("g") ? re : new RegExp(pattern, flags + "g");
+  const matches = [];
+  let m;
+  while ((m = iterRe.exec(text)) !== null) {
+    matches.push({ text: m[0], index: m.index });
+    if (m.index === iterRe.lastIndex) iterRe.lastIndex++;
+  }
+  byId("rx-count").textContent = String(matches.length);
+  byId("rx-output").value = matches.length
+    ? matches.map((x) => `[${x.index}] ${x.text}`).join("\n")
+    : "未找到匹配";
+  // 替换预览（支持 $1 等捕获组引用）
+  const repl = byId("rx-replace").value;
+  if (repl) {
+    try {
+      byId("rx-replaced").value = text.replace(re, repl);
+    } catch (e) {
+      byId("rx-replaced").value = "";
+    }
+  } else {
+    byId("rx-replaced").value = "";
+  }
+}
+byId("rx-run").addEventListener("click", rxRun);
+byId("rx-replace-run").addEventListener("click", rxRun);
+byId("rx-copy").addEventListener("click", () => toolCopy(byId("rx-output").value, "已复制匹配结果"));
 
 // 初始加载
 updateCustomRangeVisibility();
