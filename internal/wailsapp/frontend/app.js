@@ -1551,9 +1551,26 @@ async function loadSettings() {
     byId("set-token-display").value = s.token_display || "auto";
     tokenDisplayMode = s.token_display || "auto";
     updateServiceConfigLock(s.proxy_running);
+    loadAppVersion();
     resetAllDirty();
   } catch (e) {
     toast("加载设置失败: " + e.message, true);
+  }
+}
+
+// 设置页底部版本信息：读取编译时注入的版本号/构建时间/Git 提交
+async function loadAppVersion() {
+  try {
+    const v = await callGo(window.go.wailsapp.App.GetAppVersion);
+    const ver = (v.version || "dev").replace(/^v/, "");
+    byId("set-version").textContent = "v" + ver;
+    const meta = [];
+    if (v.build_time && v.build_time !== "unknown") meta.push(v.build_time);
+    if (v.git_commit && v.git_commit !== "unknown") meta.push("commit " + v.git_commit);
+    byId("set-version-meta").textContent = meta.join(" · ");
+  } catch (e) {
+    // 版本信息读取失败不阻塞设置页，显示默认值
+    byId("set-version").textContent = "vdev";
   }
 }
 

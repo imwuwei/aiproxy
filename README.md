@@ -93,6 +93,40 @@ go build -tags "production x11" -o build/aiproxy-linux .
 > 安装包基于 [NSIS](https://nsis.sourceforge.io/)（Nullsoft Scriptable Install System）生成，
 > 脚本位于 `packaging/nsis/installer.nsi`，可通过 `makensis -DVERSION=x.y.z installer.nsi` 单独编译。
 
+## 版本信息与发布
+
+### 版本信息
+
+每次构建自动把当前版本号、构建时间与 Git 提交注入二进制（`internal/version` 包，通过 `-ldflags -X` 注入，无需改代码）：
+
+- **桌面版**：设置页底部展示 `AIProxy v<版本号>` 以及构建时间、Git 提交
+- **命令行版**：`aiproxy version` 输出同样信息
+
+| 构建方式 | 注入的版本号 |
+|---|---|
+| `make ...` / `./scripts/build.sh` | `git describe --tags --always --dirty`（如 `v0.1.3`、`v0.1.2-2-gfcfb08e`） |
+| 覆盖指定 | `make build VERSION=v0.1.3` |
+| GitHub Actions（tag 构建） | tag 版本号（如 `v0.1.3`） |
+
+### 发布新版本（打 tag → 推 GitHub → 自动构建发布）
+
+仓库 CI（`.github/workflows/release.yml`）在推送 `v*` tag 时自动构建 **Windows 桌面版、Windows 安装包、CLI（Windows + Linux）** 并上传到对应的 GitHub Release。发布流程：
+
+```bash
+# 1. 提交并推送代码改动
+git add -A && git commit -m "feat: ..."
+git push origin main
+
+# 2. 一键发布：自动在最新 tag 上递增 patch 并打 tag、推送（也可指定版本：./scripts/release.sh v0.2.0）
+./scripts/release.sh
+```
+
+`scripts/release.sh` 依次：校验工作区干净 → 计算下一个版本号（或使用参数指定）→ 同步 `.release-please-manifest.json` → 打 `vX.Y.Z` 注释 tag → 推送分支与 tag。
+
+推送 tag 后 GitHub Actions 自动完成：提取版本号 → 注入版本信息编译各平台产物 → 生成 Windows 资源与安装包 → 上传 Release 资产（`aiproxy-windows-amd64.exe`、`aiproxy-cli-windows-amd64.exe`、`aiproxy-Setup-<版本>.exe`、`aiproxy-cli-linux-amd64`）。
+
+> 仓库亦配置了 release-please（推送 main 时自动生成版本 PR 并打 tag），两种方式共用 `.release-please-manifest.json` 作为版本基线；`release.sh` 每次发布都会同步该清单，避免版本号回跳或冲突。
+
 ## 命令行版（CLI）
 
 AIProxy 提供完全无 GUI 依赖的纯命令行版本，通过子命令管理渠道、模型、统计、日志与配置，适合服务器部署与脚本化运维。**不依赖任何 GUI 图形库，编译产物无需 CGO/桌面环境依赖。**

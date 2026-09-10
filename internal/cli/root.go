@@ -8,6 +8,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"aiproxy/internal/version"
 )
 
 // Run 执行 CLI 入口，返回进程退出码。
@@ -117,5 +119,10 @@ func printHelp(w io.Writer) {
 }
 
 func printVersion() {
-	fmt.Println("aiproxy（命令行版）")
+	v := version.Get()
+	fmt.Printf("aiproxy（命令行版）%s\n", v.Version)
+	if v.BuildTime != "unknown" || v.GitCommit != "unknown" {
+		fmt.Printf("构建时间: %s\n", v.BuildTime)
+		fmt.Printf("Git 提交: %s\n", v.GitCommit)
+	}
 }

@@ -30,19 +30,26 @@ jobs:
             gcc-mingw-w64-x86-64 \
             nsis
 
-      - name: Build Linux CLI (no GUI)
-        run: |
-          go build -tags "cli" -ldflags "-s -w" \
-            -o build/aiproxy-cli-linux-amd64 .
-
-      - name: Install go-winres (Windows 资源文件)
-        run: go install github.com/tc-hib/go-winres@latest
-
       - name: Extract version from release tag
         id: version
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Compose version ldflags (embed version info into binary)
+        run: |
+          GIT_SHA="$(git rev-parse --short HEAD)"
+          BUILD_TIME="$(date -u '+%Y-%m-%d %H:%M:%S')"
+          echo "GIT_SHA=$GIT_SHA" >> "$GITHUB_ENV"
+          echo "VERSION_LDFLAGS=-X aiproxy/internal/version.Version=v$VERSION -X 'aiproxy/internal/version.BuildTime=$BUILD_TIME' -X aiproxy/internal/version.GitCommit=$GIT_SHA" >> "$GITHUB_ENV"
+
+      - name: Build Linux CLI (no GUI)
+        run: |
+          go build -tags "cli" -ldflags "-s -w $VERSION_LDFLAGS" \
+            -o build/aiproxy-cli-linux-amd64 .
+
+      - name: Install go-winres (Windows 资源文件)
+        run: go install github.com/tc-hib/go-winres@latest
 
       - name: Generate Windows resources (icon / version / manifest)
         run: |
@@ -51,14 +58,14 @@ jobs:
       - name: Build Windows desktop app (Wails/WebView2)
         run: |
           CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc \
-            go build -tags "production windows" -ldflags "-H windowsgui -s -w -extldflags '-static'" \
+            go build -tags "production windows" -ldflags "-H windowsgui -s -w -extldflags '-static' $VERSION_LDFLAGS" \
             -o build/aiproxy-windows-amd64.exe .
           rm -f rsrc_windows_amd64.syso
 
       - name: Build Windows CLI (no GUI)
         run: |
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 \
-            go build -tags "cli" -ldflags "-s -w" \
+            go build -tags "cli" -ldflags "-s -w $VERSION_LDFLAGS" \
             -o build/aiproxy-cli-windows-amd64.exe .
 
       - name: Build Windows NSIS installer

@@ -18,6 +18,7 @@ import (
 	"aiproxy/internal/proxy"
 	"aiproxy/internal/singleinst"
 	"aiproxy/internal/store"
+	"aiproxy/internal/version"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -850,6 +851,12 @@ func (a *App) SetAutoStart(enabled bool) error {
 // GenerateAccessToken 生成随机访问令牌。
 func (a *App) GenerateAccessToken() string {
 	return config.GenerateAccessToken()
+}
+
+// GetAppVersion 返回编译时注入的应用版本信息（版本号/构建时间/Git 提交）。
+// 供前端设置页底部展示；版本信息由构建脚本通过 -ldflags 注入。
+func (a *App) GetAppVersion() version.Info {
+	return version.Get()
 }
 
 // ---------- 事件推送 ----------

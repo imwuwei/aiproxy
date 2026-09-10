@@ -10,8 +10,13 @@ VERSION      ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo
 BUILD_TIME   ?= $(shell date -u '+%Y-%m-%d %H:%M:%S')
 GIT_COMMIT   ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
+# 编译时注入版本信息到 internal/version 包（设置页底部 / CLI version 命令读取）
+VERSION_LDFLAGS := -X "aiproxy/internal/version.Version=$(VERSION)" \
+	-X "aiproxy/internal/version.BuildTime=$(BUILD_TIME)" \
+	-X "aiproxy/internal/version.GitCommit=$(GIT_COMMIT)"
+
 # 编译参数
-LDFLAGS      := -s -w
+LDFLAGS      := -s -w $(VERSION_LDFLAGS)
 # 桌面版（Wails）构建标签：production 为 Wails 框架必需（缺失时运行时报错），
 # 其余平台标签按目标系统附加（Linux 默认启用 x11，规避 Wayland 头文件兼容问题）。
 DESKTOP_TAGS := production
@@ -19,8 +24,6 @@ DESKTOP_TAGS := production
 CLI_TAGS     := cli
 # Linux 构建标签：默认启用 x11，规避 Wayland 头文件兼容问题（可通过 make TAGS= 覆盖）
 LINUX_TAGS   ?= x11
-# 如需注入版本信息，可取消注释以下行并添加 Version 变量
-# LDFLAGS      += -X "main.version=$(VERSION)" -X "main.buildTime=$(BUILD_TIME)" -X "main.gitCommit=$(GIT_COMMIT)"
 
 # 工具检查
 GO           ?= go

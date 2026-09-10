@@ -27,6 +27,12 @@ esac
 
 mkdir -p build
 
+# 编译时注入版本信息（设置页底部 / CLI version 命令读取）
+VERSION="$(git describe --tags --always --dirty 2>/dev/null || echo 'dev')"
+BUILD_TIME="$(date -u '+%Y-%m-%d %H:%M:%S')"
+GIT_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
+VERSION_LDFLAGS="-X aiproxy/internal/version.Version=$VERSION -X 'aiproxy/internal/version.BuildTime=$BUILD_TIME' -X aiproxy/internal/version.GitCommit=$GIT_COMMIT"
+
 # 桌面版（Wails）构建标签：production 为 Wails 框架必需（缺失时运行时报
 # "Wails applications will not build without the correct build tags"）
 DESKTOP_TAGS="production"
@@ -48,7 +54,7 @@ if [ "$BUILD_WINDOWS" = "1" ]; then
 
   echo ">>> 构建 Windows 桌面版（Wails/WebView2 交叉编译）..."
   CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc \
-    go build -tags "$DESKTOP_TAGS windows" -ldflags "-H windowsgui -s -w -extldflags '-static'" \
+    go build -tags "$DESKTOP_TAGS windows" -ldflags "-H windowsgui -s -w -extldflags '-static' $VERSION_LDFLAGS" \
     -o build/aiproxy-windows-amd64.exe .
   rm -f rsrc_windows_amd64.syso
   echo ">>> 完成: build/aiproxy-windows-amd64.exe"
@@ -56,20 +62,20 @@ fi
 
 if [ "$BUILD_LINUX" = "1" ]; then
   echo ">>> 构建 Linux 桌面版（Wails，需 webkit2gtk-4.0 & gtk+-3.0）..."
-  go build -tags "$DESKTOP_TAGS x11" -ldflags "-s -w" -o build/aiproxy-linux-amd64 .
+  go build -tags "$DESKTOP_TAGS x11" -ldflags "-s -w $VERSION_LDFLAGS" -o build/aiproxy-linux-amd64 .
   echo ">>> 完成: build/aiproxy-linux-amd64"
 fi
 
 if [ "$BUILD_CLI" = "1" ]; then
   echo ">>> 构建命令行版（无 GUI 依赖）..."
-  go build -tags cli -ldflags "-s -w" -o build/aiproxy-cli .
+  go build -tags cli -ldflags "-s -w $VERSION_LDFLAGS" -o build/aiproxy-cli .
   echo ">>> 完成: build/aiproxy-cli"
 fi
 
 if [ "$BUILD_WINDOWS_CLI" = "1" ]; then
   echo ">>> 构建 Windows 命令行版（无需 mingw-w64 / go-winres）..."
   CGO_ENABLED=0 GOOS=windows GOARCH=amd64 \
-    go build -tags cli -ldflags "-s -w" -o build/aiproxy-cli-windows-amd64.exe .
+    go build -tags cli -ldflags "-s -w $VERSION_LDFLAGS" -o build/aiproxy-cli-windows-amd64.exe .
   echo ">>> 完成: build/aiproxy-cli-windows-amd64.exe"
 fi
 
